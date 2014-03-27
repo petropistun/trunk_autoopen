@@ -1,2 +1,2 @@
-trunk_autoopen
+Trunk Autoopen
 ==============
