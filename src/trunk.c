@@ -29,8 +29,13 @@ Data Stack size         : 256
 
 
 //параметри сенсора
-#define MIN_PER_SENS 18 
-#define MAX_PER_SENS 98
+//#define MIN_PER_SENS 18 
+//#define MAX_PER_SENS 98
+#define ACCURACY_PER 5.0
+
+eeprom unsigned int min_sensor_value = 0;
+eeprom unsigned int max_sensor_value = 0;
+
 
 /*
 PINC0 - вхід від резистора
@@ -43,6 +48,10 @@ PORTD7 - електро-муфта
 
 #define CLOSE_BUTTON PINC.4    // off=0, on=1
 #define CENTRAL_BUTTON PINC.5  // off=1, on=0
+#define PROG_BUTTON PINC.1     // off=1, on=0
+
+//кінцевик
+#define END_BUTTON PINB.0     // open=1, close=0
 
 #define ELECT_COUPLING      PORTD.7
 
@@ -102,14 +111,14 @@ stage = S_NONE;
 // Input/Output Ports initialization
 // Port B initialization
 // Func7=In Func6=In Func5=In Func4=In Func3=In Func2=In Func1=In Func0=In 
-// State7=T State6=T State5=T State4=T State3=T State2=T State1=T State0=T 
-PORTB=0x00;
+// State7=T State6=T State5=T State4=T State3=T State2=T State1=T State0=P 
+PORTB=0x01;
 DDRB=0x00;
 
 // Port C initialization
 // Func6=In Func5=In Func4=In Func3=In Func2=In Func1=In Func0=In 
-// State6=T State5=P State4=T State3=T State2=T State1=T State0=T 
-PORTC=0x20;
+// State6=T State5=P State4=T State3=T State2=T State1=P State0=T 
+PORTC=0b0100010;
 DDRC=0x00;
 
 // Port D initialization
@@ -191,48 +200,82 @@ TWCR=0x00;
 
 while (1)
     {
-    
-        if(1 == CLOSE_BUTTON)
-        {  
-            while(1 == CLOSE_BUTTON) delay_ms(10);
-
-            Stop();
-            StartClose();
-            stage = S_CLOSE;
-        }
-        
-        if(0 == CENTRAL_BUTTON)
-        {                      
-            while(0 == CENTRAL_BUTTON) delay_ms(10);
+        if(0 == PROG_BUTTON)
+        {
+            //режим програмування                 
+			r_v = read_adc(0);         
             
-            Stop();
-            StartOpen();
-            stage = S_OPEN;
-        }                 
-        
-        if (S_OPEN == stage)
-        {          
-            r_v = read_adc(0);
-            if (r_v > 1024.0*MAX_PER_SENS/100)
-            {
-                stage = S_NONE;
-                Stop();            
-            }
-        
-        }
+            if (0 == min_sensor_value || min_sensor_value > 1024 || r_v < min_sensor_value )
+            {   
+                min_sensor_value = r_v; 
+            } 
 
-        if (S_CLOSE == stage)
-        {                     
-            r_v = read_adc(0);
-            if (r_v < 1024.0*MIN_PER_SENS/100)
+            if (0 == max_sensor_value || max_sensor_value > 1024 || r_v > max_sensor_value)
+            {   
+                max_sensor_value = r_v; 
+            }                   
+        }                        
+        else
+        {   
+            if (0 == min_sensor_value || min_sensor_value > 1024 || 0 == max_sensor_value || max_sensor_value > 1024)
             {
-                stage = S_NONE;
-                Stop();            
-            }
+                //якщо не запрограмовано, то нічого непрацює
+                continue;
+            } 
         
-        }
-   
-                
+			if(1 == CLOSE_BUTTON)
+			{  
+				while(1 == CLOSE_BUTTON) delay_ms(10);
 
+				Stop();
+				StartClose();
+				stage = S_CLOSE;
+			}
+			
+			if(0 == CENTRAL_BUTTON && 1 == END_BUTTON)
+			{                      
+				while(0 == CENTRAL_BUTTON) delay_ms(10);
+				
+				Stop();
+				StartOpen();
+				stage = S_OPEN;
+			}                 
+			
+			if (S_OPEN == stage && 1 == END_BUTTON)
+			{          
+				r_v = read_adc(0);
+				if (r_v > max_sensor_value - max_sensor_value*ACCURACY_PER/100.0)
+				{
+					stage = S_NONE;
+					Stop();            
+				}
+			}
+
+			if (S_CLOSE == stage && 1 == END_BUTTON)
+			{
+				r_v = read_adc(0);
+				if (r_v < min_sensor_value)
+				{
+					Stop();            
+				}
+			}
+            
+            if (0 == END_BUTTON)
+            {
+                //значить закрився капот
+                stage = S_NONE;
+            }
+            
+            if (S_NONE == stage && 1 == END_BUTTON) //захист від падіння
+            {
+				r_v = read_adc(0);
+				if (r_v < max_sensor_value - 2*max_sensor_value*ACCURACY_PER/100.0)  
+				{
+    				Stop();
+    				StartOpen();
+    				stage = S_OPEN;
+				}
+            }
+        }
     }
 }

@@ -5,6 +5,8 @@ Variable                                                          Address   Size
 EEPROM Allocation
 Variable                                                          Address   Size
 --------------------------------------------------------------------------------
+min_sensor_value                                                  0x0000       2
+max_sensor_value                                                  0x0002       2
 
 Register Allocation
 Variable                                                          Register  Size
