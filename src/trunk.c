@@ -27,10 +27,9 @@ Data Stack size         : 256
 
 #include <stdio.h>
 
+#define uint unsigned int
+#define uchar unsigned char
 
-//параметри сенсора
-//#define MIN_PER_SENS 18 
-//#define MAX_PER_SENS 98
 #define ACCURACY_PER 5.0
 
 eeprom unsigned int min_sensor_value = 0;
@@ -57,15 +56,26 @@ PORTD7 - електро-муфта
 
 #define MOTOR_FORWARD       PORTD.5
 #define MOTOR_BACKWARD      PORTD.6
+#define LED                 PORTD.0
 
 typedef enum {S_NONE, S_OPEN, S_CLOSE} Stage;
+
+#define ACCURACY 10
+
+char is_near(uint val1, uint val2)
+{
+    if (val1 <= val2 + val2*ACCURACY/100 && val1 >= val2 - val2*ACCURACY/100)
+        return 1;
+    else
+        return 0;
+}
 
 
 void StartOpen()
 {
     MOTOR_BACKWARD = 0;       
     ELECT_COUPLING = 1;
-    delay_ms(500);
+    delay_ms(30);
     MOTOR_FORWARD = 1;      
 }
 
@@ -73,7 +83,7 @@ void StartClose()
 {
     MOTOR_FORWARD = 0;      
     ELECT_COUPLING = 1;
-    delay_ms(500);
+    delay_ms(30);
     MOTOR_BACKWARD = 1;
 }
 
@@ -103,7 +113,8 @@ return ADCW;
 
 void main(void)
 {
-unsigned int r_v = 0;
+unsigned int r_v = 0, tick_count;
+uchar clean = 0;
 Stage stage;
 stage = S_NONE; 
 
@@ -197,11 +208,25 @@ SPCR=0x00;
 // TWI initialization
 // TWI disabled
 TWCR=0x00;
-
+tick_count = 0; 
+clean = 0;
 while (1)
-    {
+    {       
+        tick_count++;           
         if(0 == PROG_BUTTON)
-        {
+        { 
+            if(1 == clean)
+            {                   
+                min_sensor_value = 512; //приблизно половина 
+                max_sensor_value = 512; //приблизно половина
+                clean = 0;
+            }
+                       
+            if (0 == tick_count%50)
+                LED = 1;
+            if (0 == tick_count%100)
+                LED = 0;
+
             //режим програмування                 
 			r_v = read_adc(0);         
             
@@ -216,12 +241,50 @@ while (1)
             }                   
         }                        
         else
-        {   
+        {  
+            clean = 1;
+             
             if (0 == min_sensor_value || min_sensor_value > 1024 || 0 == max_sensor_value || max_sensor_value > 1024)
             {
                 //якщо не запрограмовано, то нічого непрацює
+                LED = 1;
+                delay_ms(1000);
+                
+                LED = 0; 
+                delay_ms(500);
+                
+                LED = 1;
+                delay_ms(250);
+                
+                LED = 0; 
+                delay_ms(2000);
+
                 continue;
             } 
+
+            if (is_near(min_sensor_value, max_sensor_value))
+            {
+                LED = 1;
+                delay_ms(1000);
+                
+                LED = 0; 
+                delay_ms(250);
+                
+                LED = 1;
+                delay_ms(150);
+
+                LED = 0; 
+                delay_ms(250);
+
+                LED = 1;
+                delay_ms(150);
+                
+                LED = 0; 
+                delay_ms(2000);
+
+                continue;
+            
+            }
         
 			if(1 == CLOSE_BUTTON)
 			{  
@@ -240,7 +303,7 @@ while (1)
 				StartOpen();
 				stage = S_OPEN;
 			}                 
-			
+			                 
 			if (S_OPEN == stage && 1 == END_BUTTON)
 			{          
 				r_v = read_adc(0);
