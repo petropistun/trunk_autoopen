@@ -35,22 +35,30 @@ Data Stack size         : 256
 eeprom unsigned int min_sensor_value = 0;
 eeprom unsigned int max_sensor_value = 0;
 
-
 /*
 PINC0 - вхід від резистора
 PINC4 - кнопка закриття
 PINC5 - з центрального замка
+PORTD4 - зумер
 PORTD5 - Закриття багажника, мотор
 PORTD6 - Відкриття багажника, мотор
 PORTD7 - електро-муфта
+PORTD0 - світодіод.
+PINB.0 - кінцевик
 */
+#define TIME_ZUMMER 100
+#define ZUMMER_PIN  PORTD.4
 
-#define CLOSE_BUTTON PINC.4    // off=0, on=1
+#define COUNT_CHANGE_STOP 10
+
+#define CLOSE_BUTTON PINC.4    // off=1, on=0
 #define CENTRAL_BUTTON PINC.5  // off=1, on=0
 #define PROG_BUTTON PINC.1     // off=1, on=0
 
 //кінцевик
-#define END_BUTTON PINB.0     // open=1, close=0
+#define END_BUTTON          PINB.0     // open=0, close=1
+#define END_BUTTON_CLOSE    1
+#define END_BUTTON_OPEN     0
 
 #define ELECT_COUPLING      PORTD.7
 
@@ -92,6 +100,7 @@ void Stop()
     ELECT_COUPLING = 0;
     MOTOR_FORWARD = 0;      
     MOTOR_BACKWARD = 0;
+    ZUMMER_PIN = 0;
 }
 
 #define ADC_VREF_TYPE 0x40
@@ -113,7 +122,9 @@ return ADCW;
 
 void main(void)
 {
-unsigned int r_v = 0, tick_count;
+unsigned int prev_r_v = 0, r_v = 0, tick_count;
+unsigned int time_zummer = TIME_ZUMMER;
+unsigned int chs = COUNT_CHANGE_STOP; 
 uchar clean = 0;
 Stage stage;
 stage = S_NONE; 
@@ -129,7 +140,7 @@ DDRB=0x00;
 // Port C initialization
 // Func6=In Func5=In Func4=In Func3=In Func2=In Func1=In Func0=In 
 // State6=T State5=P State4=T State3=T State2=T State1=P State0=T 
-PORTC=0b0100010;
+PORTC=0b0101010;
 DDRC=0x00;
 
 // Port D initialization
@@ -286,16 +297,21 @@ while (1)
             
             }
         
-			if(1 == CLOSE_BUTTON)
+			if(0 == CLOSE_BUTTON)
 			{  
-				while(1 == CLOSE_BUTTON) delay_ms(10);
+				while(0 == CLOSE_BUTTON) delay_ms(10);
+                delay_ms(10);
+				while(0 == CLOSE_BUTTON) delay_ms(10);
 
-				Stop();
+				Stop();        
+                
+                delay_ms(2000);//затримка перед закриванням
+                
 				StartClose();
 				stage = S_CLOSE;
 			}
 			
-			if(0 == CENTRAL_BUTTON && 1 == END_BUTTON)
+			if(0 == CENTRAL_BUTTON && END_BUTTON_CLOSE == END_BUTTON)
 			{                      
 				while(0 == CENTRAL_BUTTON) delay_ms(10);
 				
@@ -304,7 +320,7 @@ while (1)
 				stage = S_OPEN;
 			}                 
 			                 
-			if (S_OPEN == stage && 1 == END_BUTTON)
+			if (S_OPEN == stage)
 			{          
 				r_v = read_adc(0);
 				if (r_v > max_sensor_value - max_sensor_value*ACCURACY_PER/100.0)
@@ -314,13 +330,40 @@ while (1)
 				}
 			}
 
-			if (S_CLOSE == stage && 1 == END_BUTTON)
-			{
+			if (S_CLOSE == stage)
+			{       
+                time_zummer--;
+                if(0 == time_zummer)
+                {
+                    ZUMMER_PIN = !ZUMMER_PIN;  
+                    time_zummer = TIME_ZUMMER; 
+                }                  
+                
 				r_v = read_adc(0);
 				if (r_v < min_sensor_value)
 				{
 					Stop();            
 				}
+                
+                if (r_v == prev_r_v)
+                {
+                    chs --;
+                    if(0 == chs)
+                    {
+                        Stop();
+                        chs = COUNT_CHANGE_STOP;
+                    }
+                }
+                else
+                {
+                    prev_r_v = r_v;
+                    chs = COUNT_CHANGE_STOP; 
+                }               
+                
+                if(END_BUTTON_OPEN == END_BUTTON)
+                {          
+                    Stop();
+                }
 			}
             
             if (0 == END_BUTTON)
@@ -329,7 +372,7 @@ while (1)
                 stage = S_NONE;
             }
             
-            if (S_NONE == stage && 1 == END_BUTTON) //захист від падіння
+            if (S_NONE == stage && END_BUTTON_OPEN == END_BUTTON) //захист від падіння
             {
 				r_v = read_adc(0);
 				if (r_v < max_sensor_value - 2*max_sensor_value*ACCURACY_PER/100.0)  
