@@ -366,16 +366,17 @@ while (1)
                 }
 			}
             
-            if (0 == END_BUTTON)
+            if (END_BUTTON_CLOSE == END_BUTTON)
             {
                 //значить закрився капот
+                Stop(); // це про всяк випадок :)
                 stage = S_NONE;
             }
             
             if (S_NONE == stage && END_BUTTON_OPEN == END_BUTTON) //захист від падіння
             {
 				r_v = read_adc(0);
-				if (r_v < max_sensor_value - 2*max_sensor_value*ACCURACY_PER/100.0)  
+				if (r_v < max_sensor_value - max_sensor_value*ACCURACY_PER/100.0)  
 				{
     				Stop();
     				StartOpen();
