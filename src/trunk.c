@@ -49,7 +49,7 @@ PINB.0 - кінцевик
 #define TIME_ZUMMER 100
 #define ZUMMER_PIN  PORTD.4
 
-#define COUNT_CHANGE_STOP 10
+#define COUNT_CHANGE_STOP 50
 
 #define CLOSE_BUTTON PINC.4    // off=1, on=0
 #define CENTRAL_BUTTON PINC.5  // off=1, on=0
@@ -78,20 +78,29 @@ char is_near(uint val1, uint val2)
         return 0;
 }
 
+/*void blink()
+{
+    LED = 1;
+    delay_ms(100);
+    LED = 0;
+    delay_ms(50);
+}    */
 
 void StartOpen()
 {
-    MOTOR_BACKWARD = 0;       
+    MOTOR_FORWARD = 0;      
+    MOTOR_BACKWARD = 0;
     ELECT_COUPLING = 1;
-    delay_ms(30);
-    MOTOR_FORWARD = 1;      
+    delay_ms(100);
+    MOTOR_FORWARD = 1;
 }
 
 void StartClose()
 {
     MOTOR_FORWARD = 0;      
+    MOTOR_BACKWARD = 0;
     ELECT_COUPLING = 1;
-    delay_ms(30);
+    delay_ms(100);
     MOTOR_BACKWARD = 1;
 }
 
@@ -125,7 +134,7 @@ void main(void)
 unsigned int prev_r_v = 0, r_v = 0, tick_count;
 unsigned int time_zummer = TIME_ZUMMER;
 unsigned int chs = COUNT_CHANGE_STOP; 
-uchar clean = 0;
+uchar clean = 0, i = 0;
 Stage stage;
 stage = S_NONE; 
 
@@ -221,6 +230,16 @@ SPCR=0x00;
 TWCR=0x00;
 tick_count = 0; 
 clean = 0;
+
+    for( i = 0; i < 1; i++)
+    {
+
+        LED = 0; 
+        delay_ms(250);
+        LED = 1;
+        delay_ms(150);
+    }
+
 while (1)
     {       
         tick_count++;           
@@ -272,7 +291,7 @@ while (1)
 
                 continue;
             } 
-
+            else
             if (is_near(min_sensor_value, max_sensor_value))
             {
                 LED = 1;
@@ -295,7 +314,9 @@ while (1)
 
                 continue;
             
-            }
+            }   
+            else
+                LED = 0;
         
 			if(0 == CLOSE_BUTTON)
 			{  
@@ -303,11 +324,12 @@ while (1)
                 delay_ms(10);
 				while(0 == CLOSE_BUTTON) delay_ms(10);
 
-				Stop();        
+				//Stop();
                 
                 delay_ms(2000);//затримка перед закриванням
                 
-				StartClose();
+				StartClose();   
+                
 				stage = S_CLOSE;
 			}
 			
@@ -325,7 +347,8 @@ while (1)
 				r_v = read_adc(0);
 				if (r_v > max_sensor_value - max_sensor_value*ACCURACY_PER/100.0)
 				{
-					stage = S_NONE;
+					stage = S_NONE;   
+                    //blink();
 					Stop();            
 				}
 			}
@@ -341,7 +364,7 @@ while (1)
                 
 				r_v = read_adc(0);
 				if (r_v < min_sensor_value)
-				{
+				{       
 					Stop();            
 				}
                 
@@ -350,7 +373,7 @@ while (1)
                     chs --;
                     if(0 == chs)
                     {
-                        Stop();
+                        Stop();           
                         chs = COUNT_CHANGE_STOP;
                     }
                 }
@@ -360,7 +383,7 @@ while (1)
                     chs = COUNT_CHANGE_STOP; 
                 }               
                 
-                if(END_BUTTON_OPEN == END_BUTTON)
+                if(END_BUTTON_CLOSE == END_BUTTON)
                 {          
                     Stop();
                 }
@@ -370,7 +393,7 @@ while (1)
             {
                 //значить закрився капот
                 Stop(); // це про всяк випадок :)
-                stage = S_NONE;
+                stage = S_NONE;     
             }
             
             if (S_NONE == stage && END_BUTTON_OPEN == END_BUTTON) //захист від падіння
