@@ -49,7 +49,7 @@ PINB.0 - кінцевик
 #define TIME_ZUMMER 100
 #define ZUMMER_PIN  PORTD.4
 
-#define COUNT_CHANGE_STOP 50
+#define COUNT_CHANGE_STOP 30
 
 #define CLOSE_BUTTON PINC.4    // off=1, on=0
 #define CENTRAL_BUTTON PINC.5  // off=1, on=0
@@ -69,6 +69,7 @@ PINB.0 - кінцевик
 typedef enum {S_NONE, S_OPEN, S_CLOSE} Stage;
 
 #define ACCURACY 10
+#define free_runnig 104
 
 char is_near(uint val1, uint val2)
 {
@@ -317,7 +318,7 @@ while (1)
             }   
             else
                 LED = 0;
-        
+                  
 			if(0 == CLOSE_BUTTON)
 			{  
 				while(0 == CLOSE_BUTTON) delay_ms(10);
@@ -332,7 +333,7 @@ while (1)
                 
 				stage = S_CLOSE;
 			}
-			
+			    
 			if(0 == CENTRAL_BUTTON && END_BUTTON_CLOSE == END_BUTTON)
 			{                      
 				while(0 == CENTRAL_BUTTON) delay_ms(10);
@@ -343,7 +344,13 @@ while (1)
 			}                 
 			                 
 			if (S_OPEN == stage)
-			{          
+			{   
+                 time_zummer--;
+                if(0 == time_zummer)
+                {
+                    ZUMMER_PIN = !ZUMMER_PIN;  
+                    time_zummer = TIME_ZUMMER; 
+                }       
 				r_v = read_adc(0);
 				if (r_v > max_sensor_value - max_sensor_value*ACCURACY_PER/100.0)
 				{
@@ -374,7 +381,10 @@ while (1)
                     if(0 == chs)
                     {
                         Stop();           
-                        chs = COUNT_CHANGE_STOP;
+                        chs = COUNT_CHANGE_STOP;  
+                        StartOpen();
+				        stage = S_OPEN;
+                        
                     }
                 }
                 else
@@ -399,7 +409,7 @@ while (1)
             if (S_NONE == stage && END_BUTTON_OPEN == END_BUTTON) //захист від падіння
             {
 				r_v = read_adc(0);
-				if (r_v < max_sensor_value - max_sensor_value*ACCURACY_PER/100.0)  
+				if (r_v < max_sensor_value - max_sensor_value*ACCURACY_PER/100.0-free_running)  
 				{
     				Stop();
     				StartOpen();
