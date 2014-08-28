@@ -69,7 +69,9 @@ PINB.0 - кінцевик
 typedef enum {S_NONE, S_OPEN, S_CLOSE} Stage;
 
 #define ACCURACY 10
-#define free_runnig 104
+#define free_runnig 90
+#define free_up 50
+
 
 char is_near(uint val1, uint val2)
 {
@@ -98,6 +100,7 @@ void StartOpen()
 
 void StartClose()
 {
+              
     MOTOR_FORWARD = 0;      
     MOTOR_BACKWARD = 0;
     ELECT_COUPLING = 1;
@@ -323,15 +326,25 @@ while (1)
 			{  
 				while(0 == CLOSE_BUTTON) delay_ms(10);
                 delay_ms(10);
-				while(0 == CLOSE_BUTTON) delay_ms(10);
-
+				while(0 == CLOSE_BUTTON) delay_ms(10);   
+                
+            
+                time_zummer--;
+              if(0 == time_zummer)
+                {
+                  ZUMMER_PIN = !ZUMMER_PIN;  
+                    time_zummer = TIME_ZUMMER; 
+              }        
+                  delay_ms(1000);//затримка перед закриванням  
 				//Stop();
                 
-                delay_ms(2000);//затримка перед закриванням
+                
                 
 				StartClose();   
-                
-				stage = S_CLOSE;
+                stage = S_CLOSE;
+				  
+                 
+                   
 			}
 			    
 			if(0 == CENTRAL_BUTTON && END_BUTTON_CLOSE == END_BUTTON)
@@ -340,19 +353,21 @@ while (1)
 				
 				Stop();
 				StartOpen();
-				stage = S_OPEN;
+				stage = S_OPEN;   
+                  time_zummer--;
+               
 			}                 
 			                 
 			if (S_OPEN == stage)
 			{   
-                 time_zummer--;
-                if(0 == time_zummer)
+                time_zummer--;
+              if(0 == time_zummer)
                 {
-                    ZUMMER_PIN = !ZUMMER_PIN;  
+                  ZUMMER_PIN = !ZUMMER_PIN;  
                     time_zummer = TIME_ZUMMER; 
-                }       
+              }        
 				r_v = read_adc(0);
-				if (r_v > max_sensor_value - max_sensor_value*ACCURACY_PER/100.0)
+				if (r_v > max_sensor_value - max_sensor_value*ACCURACY_PER/100.0+free_up)
 				{
 					stage = S_NONE;   
                     //blink();
@@ -362,12 +377,12 @@ while (1)
 
 			if (S_CLOSE == stage)
 			{       
-                time_zummer--;
-                if(0 == time_zummer)
+               time_zummer--;
+               if(0 == time_zummer)
                 {
                     ZUMMER_PIN = !ZUMMER_PIN;  
                     time_zummer = TIME_ZUMMER; 
-                }                  
+                }   
                 
 				r_v = read_adc(0);
 				if (r_v < min_sensor_value)
@@ -409,7 +424,7 @@ while (1)
             if (S_NONE == stage && END_BUTTON_OPEN == END_BUTTON) //захист від падіння
             {
 				r_v = read_adc(0);
-				if (r_v < max_sensor_value - max_sensor_value*ACCURACY_PER/100.0-free_running)  
+				if (r_v < max_sensor_value - max_sensor_value*ACCURACY_PER/100.0-free_runnig)  
 				{
     				Stop();
     				StartOpen();
