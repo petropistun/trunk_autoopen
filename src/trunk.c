@@ -36,9 +36,9 @@ eeprom unsigned int min_sensor_value = 0;
 eeprom unsigned int max_sensor_value = 0;
 
 /*
-PINC0 - вхід від резистора
+PINC5- вхід від резистора
 PINC4 - кнопка закриття
-PINC5 - з центрального замка
+PINC0 - з центрального замка
 PORTD4 - зумер
 PORTD5 - Закриття багажника, мотор
 PORTD6 - Відкриття багажника, мотор
@@ -52,7 +52,7 @@ PINB.0 - кінцевик
 #define COUNT_CHANGE_STOP 30
 
 #define CLOSE_BUTTON PINC.4    // off=1, on=0
-#define CENTRAL_BUTTON PINC.5  // off=1, on=0
+#define CENTRAL_BUTTON PINC.0  // off=1, on=0
 #define PROG_BUTTON PINC.1     // off=1, on=0
 
 //кінцевик
@@ -152,8 +152,8 @@ DDRB=0x00;
 
 // Port C initialization
 // Func6=In Func5=In Func4=In Func3=In Func2=In Func1=In Func0=In 
-// State6=T State5=P State4=T State3=T State2=T State1=P State0=T 
-PORTC=0b0101010;
+// State6=T State5=T State4=T State3=T State2=T State1=P State0=P 
+PORTC=0b0001011;
 DDRC=0x00;
 
 // Port D initialization
@@ -262,7 +262,7 @@ while (1)
                 LED = 0;
 
             //режим програмування                 
-			r_v = read_adc(0);         
+			r_v = read_adc(5);         
             
             if (0 == min_sensor_value || min_sensor_value > 1024 || r_v < min_sensor_value )
             {   
@@ -366,7 +366,7 @@ while (1)
                   ZUMMER_PIN = !ZUMMER_PIN;  
                     time_zummer = TIME_ZUMMER; 
               }        
-				r_v = read_adc(0);
+				r_v = read_adc(5);
 				if (r_v > max_sensor_value - max_sensor_value*ACCURACY_PER/100.0+free_up)
 				{
 					stage = S_NONE;   
@@ -384,7 +384,7 @@ while (1)
                     time_zummer = TIME_ZUMMER; 
                 }   
                 
-				r_v = read_adc(0);
+				r_v = read_adc(5);
 				if (r_v < min_sensor_value)
 				{       
 					Stop();            
@@ -423,7 +423,7 @@ while (1)
             
             if (S_NONE == stage && END_BUTTON_OPEN == END_BUTTON) //захист від падіння
             {
-				r_v = read_adc(0);
+				r_v = read_adc(5);
 				if (r_v < max_sensor_value - max_sensor_value*ACCURACY_PER/100.0-free_runnig)  
 				{
     				Stop();
